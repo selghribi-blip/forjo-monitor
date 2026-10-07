@@ -1,0 +1,17 @@
+# Core HTTP + parsing
+requests>=2.32.3
+beautifulsoup4>=4.12.3
+lxml>=5.3.0
+
+# Storage (MongoDB Atlas free M0 tier)
+pymongo>=4.9.1
+dnspython>=2.6.1
+
+# Config
+python-dotenv>=1.0.1
+
+# Real-browser auditing (Core Web Vitals, ad-slot visibility, screenshots)
+playwright>=1.48.0
+
+# Content / link inventory crawler
+scrapy>=2.12.0

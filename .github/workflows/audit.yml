@@ -1,0 +1,94 @@
+name: Site audit
+
+on:
+  schedule:
+    # Every Monday at 06:00 UTC.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Audit only the first N pages (0 = every discovered page)"
+        required: false
+        default: "0"
+      http_only:
+        description: "Skip the headless browser (fast mode)"
+        type: boolean
+        required: false
+        default: false
+      run_inventory:
+        description: "Also run the Scrapy content inventory"
+        type: boolean
+        required: false
+        default: true
+  push:
+    branches: [main]
+    paths:
+      - "forjo_monitor/**"
+      - ".github/workflows/audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forjo-monitor-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Audit ${{ github.event.inputs.limit || '0' }} pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SITE_BASE_URL: ${{ secrets.SITE_BASE_URL }}
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      CRAWL_CONCURRENCY: "2"
+      CRAWL_DELAY_SECONDS: "2"
+      BROWSER_AUDIT_ENABLED: "true"
+      BROWSER_HEADLESS: "true"
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install the project
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Install the headless browser
+        if: ${{ github.event.inputs.http_only != 'true' }}
+        run: python -m playwright install --with-deps chromium
+
+      - name: Run the audit
+        run: |
+          LIMIT="${{ github.event.inputs.limit || '0' }}"
+          HTTP_ONLY="${{ github.event.inputs.http_only || 'false' }}"
+          ARGS="--limit $LIMIT"
+          if [ "$HTTP_ONLY" = "true" ]; then ARGS="$ARGS --http-only"; fi
+          python -m forjo_monitor audit $ARGS
+        continue-on-error: false
+
+      - name: Run the content inventory
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.run_inventory == 'true' }}
+        run: python -m forjo_monitor inventory
+        continue-on-error: true
+
+      - name: Upload the reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forjo-monitor-reports
+          path: |
+            reports/
+            artifacts/
+          if-no-files-found: warn
+          retention-days: 30

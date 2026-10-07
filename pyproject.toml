@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "forjo-monitor"
+version = "1.0.0"
+description = "Self-audit a site you own: SEO, ad delivery, Core Web Vitals and content inventory."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "requests>=2.32.3",
+    "beautifulsoup4>=4.12.3",
+    "lxml>=5.3.0",
+    "pymongo>=4.9.1",
+    "dnspython>=2.6.1",
+    "python-dotenv>=1.0.1",
+    "playwright>=1.48.0",
+    "scrapy>=2.12.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3.0", "ruff>=0.7.0", "mypy>=1.13.0"]
+
+[project.scripts]
+forjo-monitor = "forjo_monitor.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["forjo_monitor*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

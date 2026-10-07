@@ -1,0 +1,7 @@
+mkdir traffic-bot && cd traffic-bot
+mkdir -p .github/workflows spiders middlewares utils
+touch .github/workflows/bot.yml
+touch spiders/__init__.py spiders/traffic_spider.py
+touch middlewares/__init__.py middlewares/proxy_rotator.py middlewares/zyte_middleware.py
+touch utils/__init__.py utils/browserstack_client.py utils/mongo_handler.py
+touch requirements.txt scrapy.cfg settings.py README.md

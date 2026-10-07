@@ -32,7 +32,7 @@ def build_scrapy_settings(settings: Settings) -> dict[str, Any]:
     return {
         "ROBOTSTXT_OBEY": settings.crawl_respect_robots,
         "DOWNLOAD_DELAY": settings.crawl_delay_seconds,
-        "RANDOMIZE_DOWNLOAD_DELAY": True,
+        "DOWNLOAD_DELAY_JITTER": 0.5,  # بديل الخيار المُلغى RANDOMIZE_DOWNLOAD_DELAY
         "CONCURRENT_REQUESTS": settings.crawl_concurrency,
         "CONCURRENT_REQUESTS_PER_DOMAIN": settings.crawl_concurrency,
         "AUTOTHROTTLE_ENABLED": True,
@@ -71,8 +71,13 @@ def run_inventory(settings: Settings, max_pages: int = 0) -> InventoryResult:
     output_path = Path(scrapy_settings["INVENTORY_OUTPUT"])
 
     process = CrawlerProcess(settings=scrapy_settings)
-    crawler = process.crawl(
-        ContentInventorySpider,
+    
+    # 1. إنشاء كائن الـ Crawler أولاً بشكل مستقل
+    crawler = process.create_crawler(ContentInventorySpider)
+    
+    # 2. بدء التناوب باستخدام الكائن المنشأة
+    process.crawl(
+        crawler,
         site_base_url=settings.site_base_url,
         owned_hosts=sorted(settings.owned_hosts),
         max_pages=max_pages or settings.crawl_max_pages,
@@ -81,7 +86,11 @@ def run_inventory(settings: Settings, max_pages: int = 0) -> InventoryResult:
     process.start()
     _REACTOR_ALREADY_USED = True
 
-    item_count = int(crawler.stats.get_value("item_scraped_count", 0) or 0)
+    # 3. قراءة الإحصائيات بأمان من كائن crawler بعد توقف العملية
+    item_count = 0
+    if crawler.stats:
+        item_count = int(crawler.stats.get_value("item_scraped_count", 0) or 0)
+
     stored = bool(settings.mongodb_uri)
     LOGGER.info("Content inventory finished: %d pages", item_count)
     return InventoryResult(item_count=item_count, output_path=output_path, stored=stored)
